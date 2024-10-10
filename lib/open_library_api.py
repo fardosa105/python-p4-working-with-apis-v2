@@ -1,57 +1,41 @@
 import requests
 import json
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 class Search:
-
-    def get_search_results(self):
-        search_term = "the lord of the rings"
-
-        search_term_formatted = search_term.replace(" ", "+")
-        fields = ["title", "author_name"]
-        # formats the list into a comma separated string
-        # output: "title,author_name"
-        fields_formatted = ",".join(fields)
-        limit = 1
-
-        URL = f"https://openlibrary.org/search.json?title={search_term_formatted}&fields={fields_formatted}&limit={limit}"
-
-        response = requests.get(URL)
-        return response.content
-
-    def get_search_results_json(self):
-        search_term = "the lord of the rings"
-
-        search_term_formatted = search_term.replace(" ", "+")
-        fields = ["title", "author_name"]
-        fields_formatted = ",".join(fields)
-        limit = 1
-
-        URL = f"https://openlibrary.org/search.json?title={search_term_formatted}&fields={fields_formatted}&limit={limit}"
-        print(URL)
-        response = requests.get(URL)
-        return response.json()
-
     def get_user_search_results(self, search_term):
-        search_term_formatted = search_term.replace(" ", "+")
-        fields = ["title", "author_name"]
-        fields_formatted = ",".join(fields)
-        limit = 1
+        logging.info(f"Searching for: {search_term}")
+        try:
+            search_term_formatted = search_term.replace(" ", "+")
+            fields = ["title", "author_name"]
+            fields_formatted = ",".join(fields)
+            limit = 5
 
-        URL = f"https://openlibrary.org/search.json?title={search_term_formatted}&fields={fields_formatted}&limit={limit}"
+            URL = f"https://openlibrary.org/search.json?title={search_term_formatted}&fields={fields_formatted}&limit={limit}"
 
-        response = requests.get(URL).json()
-        response_formatted = f"Title: {response['docs'][0]['title']}\nAuthor: {response['docs'][0]['author_name'][0]}"
-        return response_formatted
+            logging.info(f"Requesting URL: {URL}")
+            response = requests.get(URL)
+            response.raise_for_status()
 
+            data = response.json()
 
-# results = Search().get_search_results()
-# print(results)
+            if not data['docs']:
+                logging.warning("No results found.")
+                return "No results found."
 
-# results_json = Search().get_search_results_json()
-# print(json.dumps(results_json, indent=1))
+            results = []
+            for book in data['docs']:
+                title = book.get('title', 'No title')
+                author = ', '.join(book.get('author_name', ['Unknown author']))
+                results.append(f"Title: {title}\nAuthor: {author}")
 
-search_term = input("Enter a book title: ")
-result = Search().get_user_search_results(search_term)
-print("Search Result:\n")
-print(result)
+            return "\n\n".join(results)
+        except requests.exceptions.RequestException as e:
+            logging.error(f"HTTP request failed: {e}")
+            return f"An error occurred: {e}"
+        except (KeyError, IndexError):
+            logging.error("Unexpected response format.")
+            return "Unexpected response format from the API."
